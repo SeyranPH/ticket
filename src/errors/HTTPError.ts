@@ -15,3 +15,15 @@ export class NotFoundError extends HTTPError {
         super(404, message);
     }
 }
+
+export class ForbiddenError extends HTTPError {
+    constructor(message: string) {
+        super(403, message);
+    }
+}
+
+export class ConflictError extends HTTPError {
+    constructor(message: string) {
+        super(409, message);
+    }
+}

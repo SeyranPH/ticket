@@ -1,15 +1,17 @@
-import { Hall } from "../HallModule/hall";
 import { Event } from "./event";
-import { Repository, getRepository } from "typeorm";
+import { Hall } from "../HallModule/hall";
+import { AppDataSource } from "../../DataSource";
 import { NotFoundError } from "../../errors/HTTPError";
+
+import { Repository } from "typeorm";
 
 export class EventService {
   private hallRepository: Repository<Hall>;
   private eventRepository: Repository<Event>;
 
   constructor() {
-    this.hallRepository = getRepository(Hall);
-    this.eventRepository = getRepository(Event);
+    this.hallRepository = AppDataSource.getRepository(Hall);
+    this.eventRepository = AppDataSource.getRepository(Event);
   }
 
   public async create({

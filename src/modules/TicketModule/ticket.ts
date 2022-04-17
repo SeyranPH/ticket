@@ -7,9 +7,9 @@ import {
 } from "typeorm";
 import { Event } from "../EventModule/event";
 import { Payment } from "../PaymentModule/payment";
+import { User } from "../UserModule/user";
 
-enum TicketStatus {
-    available = "available",
+export enum TicketStatus {
     reserved = "reserved",
     sold = "sold",
 }
@@ -24,17 +24,24 @@ export class Ticket {
   id!: string;
 
   @Column()
-  raw!: string;
+  raw!: number;
 
   @Column()
   column!: number;
 
   @Column({
     type: "enum",
-    enum: TicketStatus,
-    default: TicketStatus.available,
+    enum: TicketStatus
   })
   status!: TicketStatus;
+
+  @Column({
+    type: "timestamp"
+  })
+  expiry!: Date;
+
+  @ManyToOne(() => User, (user) => user.tickets)
+  user!: User;
 
   @ManyToOne(() => Event, (event) => event.tickets)
   event!: Event;

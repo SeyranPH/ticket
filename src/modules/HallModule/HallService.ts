@@ -1,15 +1,17 @@
 import { Hall } from "./hall";
 import { City } from "../CityModule/city";
-import { Repository, getRepository } from "typeorm";
+import { AppDataSource } from "../../DataSource";
 import { NotFoundError } from "../../errors/HTTPError";
+
+import { Repository } from "typeorm";
 
 export class HallService {
   private hallRepository: Repository<Hall>;
   private cityRepository: Repository<City>;
 
   constructor() {
-    this.hallRepository = getRepository(Hall);
-    this.cityRepository = getRepository(City);
+    this.hallRepository = AppDataSource.getRepository(Hall);  
+    this.cityRepository = AppDataSource.getRepository(City);  
   }
 
   public async create({

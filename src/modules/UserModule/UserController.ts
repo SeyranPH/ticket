@@ -10,7 +10,7 @@ async function createUser(req: Request, res: Response) {
   const { username, password } = req.body;
   const user = await userService.create({ username, password });
 
-  res.send(user);
+  return res.send(user);
 }
 
 export { userRouter };
