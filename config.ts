@@ -10,7 +10,6 @@ export const dbConfig = {
   database!: process.env.POSTGRES_DB,
   synchronize!: true,
   autoLoadEntities: true,
-  logging: true,
 };
 
 export const config = {

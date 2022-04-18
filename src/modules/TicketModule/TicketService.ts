@@ -1,24 +1,28 @@
 import { Ticket, TicketStatus } from "./ticket";
 import { Event } from "../EventModule/event";
 import { User } from "../UserModule/user";
+import { Payment, PaymentStatus } from "../PaymentModule/payment";
 import {
   ForbiddenError,
   NotFoundError,
   ConflictError,
 } from "../../errors/HTTPError";
 
-import { Brackets, createQueryBuilder, Repository } from "typeorm";
+import { Brackets, Repository } from "typeorm";
 import { AppDataSource } from "../../DataSource";
+import moment from "moment-timezone";
 
 export class TicketService {
   private ticketRepository: Repository<Ticket>;
   private eventRepository: Repository<Event>;
   private userRepository: Repository<User>;
+  private paymentRepository: Repository<Payment>;
 
   constructor() {
     this.ticketRepository = AppDataSource.getRepository(Ticket);
     this.eventRepository = AppDataSource.getRepository(Event);
     this.userRepository = AppDataSource.getRepository(User);
+    this.paymentRepository = AppDataSource.getRepository(Payment);
   }
 
   private sortBySeat(
@@ -37,8 +41,27 @@ export class TicketService {
     throw new ForbiddenError("column number must be different");
   }
 
-  private validateReservation(
-    ticketPlaces: Array<{ raw: number; column: number }>
+  private async checkTicketAvailability(ticketPlaces: Array<{ raw: number; column: number }>, event: Event) {
+    for (let ticket of ticketPlaces) {
+      const ticketExists = await this.ticketRepository.createQueryBuilder("Ticket")
+        .where("Ticket.raw = :raw", { raw: ticket.raw })
+        .andWhere("Ticket.column = :column", { column: ticket.column })
+        .andWhere("Ticket.event = :event", { event: event.id })
+        .getOne();
+
+      if (ticketExists && 
+          (ticketExists.payment.status === PaymentStatus.sold || 
+          (ticketExists.payment.expiry && ticketExists.payment.expiry > new Date()))) {
+        return false;
+      }
+    };
+    return true;
+  }
+  
+  public validateReservationPlaces(
+    ticketPlaces: Array<{ raw: number; column: number }>,
+    totalRaws: number,
+    totalColumns: number
   ) {
     if (ticketPlaces.length === 0) {
       throw new ForbiddenError("Ticket places must be not empty");
@@ -47,7 +70,18 @@ export class TicketService {
       throw new ForbiddenError("Ticket places must be even");
     }
     const orderedPlaces = ticketPlaces.sort(this.sortBySeat);
+    if (orderedPlaces[0].raw > totalRaws) {
+      throw new ForbiddenError(
+        "Ticket places' raws must be less than total raws"
+      );
+    }
     const startPlace = orderedPlaces[0].column;
+    const endPlace = orderedPlaces[orderedPlaces.length - 1];
+    if (endPlace.column > totalColumns) {
+      throw new ForbiddenError(
+        "Ticket places' columns must be less than total columns"
+      );
+    }
     for (let i = 1; i < orderedPlaces.length; i++) {
       const currentPlace = orderedPlaces[i].column;
       if (currentPlace - startPlace !== i) {
@@ -57,21 +91,24 @@ export class TicketService {
     return;
   }
 
-  public async makeReservation(
-    ticketPlaces: Array<{ raw: number; column: number }>,
-    eventName: string,
-    userId: string
-  ) {
-    this.validateReservation(ticketPlaces);
+  public async makeReservation(ticketPlaces: Array<{ raw: number; column: number }>,  eventId: string,  userId: string) {
+    //check event exists
     const event = await this.eventRepository.findOne({
       where: {
-        name: eventName,
+        id: eventId,
+      },
+      join: {
+        alias: "Event",
+        leftJoinAndSelect: {
+          hall: "Event.hall",
+        },
       },
     });
     if (!event) {
       throw new NotFoundError("Event not found");
     }
 
+    //check user exists
     const user = await this.userRepository.findOne({
       where: {
         id: userId,
@@ -81,32 +118,33 @@ export class TicketService {
       throw new NotFoundError("User not found");
     }
 
-    ticketPlaces.forEach(async ({ raw, column }) => {
-      const ticketExists = await this.ticketRepository.findOne({
-        where: {
-          raw,
-          column,
-          event,
-        },
-      });
-      if (
-        ticketExists &&
-        (ticketExists.status === TicketStatus.sold ||
-          ticketExists.expiry > new Date())
-      ) {
-        throw new ConflictError("Ticket already exists");
-      }
-      const expiryTime = 1000 * 60 * 15; //15 minutes
-      const ticket = new Ticket({
-        raw,
-        column,
+    //validate ticket places meet requirements
+    const {rawCount, columnCount} = await event.hall;
+    this.validateReservationPlaces(ticketPlaces, rawCount, columnCount);
+
+    const ticketsAvailable = await this.checkTicketAvailability(ticketPlaces, event);
+    if (!ticketsAvailable) {
+      throw new ConflictError("Tickets are not available");
+    }
+
+    const tickets: Array<Ticket> = await Promise.all(ticketPlaces.map(async (ticketPlace) => {
+      return new Ticket({
+        raw: ticketPlace.raw,
+        column: ticketPlace.column,
         event,
-        user,
-        status: TicketStatus.reserved,
-        expiry: new Date(Date.now() + expiryTime),
+        user
       });
-      await this.ticketRepository.save(ticket);
+    }
+    ));
+    const expiryTime = 15; // minutes
+    const payment = new Payment({
+      status: PaymentStatus.reserved,
+      expiry: moment().add(expiryTime, 'minutes').toDate(),
+      user,
+      tickets,
     });
+    await this.paymentRepository.save(payment);
+    return payment.id;
   }
 
   public async getEventAvailability(eventId: string) {
@@ -120,18 +158,21 @@ export class TicketService {
     }
     const unavailableTickets = await this.ticketRepository
       .createQueryBuilder("Ticket")
-      .select("Ticket.raw", "raw")
-      .addSelect("Ticket.column", "column")
-      .where("Ticket.event = :event", { event })
-      .andWhere(new Brackets(qb => {
-        qb.where("Ticket.expiry > :now", { now: new Date() })
-        qb.orWhere("Ticket.status = :status", { status: TicketStatus.sold })
-      }))
+      .where("Ticket.event = :event", { event: eventId })
+      .leftJoinAndSelect("Ticket.payment", "Payment")
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where("Payment.expiry > :now", { now: moment().toISOString() });
+          qb.orWhere("Payment.status = :status", { status: TicketStatus.sold });
+        })
+      )
+      .select(['Ticket.raw', 'Ticket.column'])
       .getMany();
+
     return unavailableTickets;
   }
 
-  public async getUserAvailability(userId: string) {
+  public async getUserReservations(userId: string) {
     const user = await this.userRepository.findOne({
       where: {
         id: userId,
@@ -140,16 +181,13 @@ export class TicketService {
     if (!user) {
       throw new NotFoundError("User not found");
     }
-    const unavailableTickets = await this.ticketRepository
+    const reservedTickets = await this.ticketRepository
       .createQueryBuilder("Ticket")
-      .select("Ticket.raw", "raw")
-      .addSelect("Ticket.column", "column")
-      .where("Ticket.user = :user", { user })
-      .andWhere(new Brackets(qb => {
-        qb.where("Ticket.expiry > :now", { now: new Date() })
-        qb.orWhere("Ticket.status = :status", { status: TicketStatus.sold })
-      }))
+      .where("Ticket.user = :user", { user: userId })
+      .leftJoinAndSelect("Ticket.payment", "Payment")
+      .andWhere("Payment.expiry > :now", { now: moment().toISOString() })
+      .select(['Ticket.raw', 'Ticket.column', 'Ticket.event'])
       .getMany();
-    return unavailableTickets;
+    return reservedTickets;
   }
 }

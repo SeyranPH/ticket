@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   ManyToOne,
   OneToOne,
+  JoinColumn,
 } from "typeorm";
 import { Event } from "../EventModule/event";
 import { Payment } from "../PaymentModule/payment";
@@ -30,23 +31,18 @@ export class Ticket {
   column!: number;
 
   @Column({
-    type: "enum",
-    enum: TicketStatus
+    nullable: true,
   })
-  status!: TicketStatus;
-
-  @Column({
-    type: "timestamp"
-  })
-  expiry!: Date;
+  userId?: string;
 
   @ManyToOne(() => User, (user) => user.tickets)
-  user!: User;
+  @JoinColumn({ name: 'userId' })
+  user?: User;
 
   @ManyToOne(() => Event, (event) => event.tickets)
   event!: Event;
 
-  @OneToOne(() => Payment, (payment) => payment.ticket)
+  @ManyToOne(() => Payment, (payment) => payment.tickets)
   payment!: Payment;
 }
 

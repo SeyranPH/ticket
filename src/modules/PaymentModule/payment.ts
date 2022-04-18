@@ -1,6 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, OneToOne } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, OneToOne, OneToMany, Column, ManyToMany, ManyToOne, JoinColumn } from "typeorm";
 import { Ticket } from "../TicketModule/ticket";
+import { User } from "../UserModule/user";
 
+export enum PaymentStatus {
+  reserved = "reserved",
+  sold = "sold",
+}
 @Entity()
 export class Payment {
   constructor(payment: Partial<Payment>) {
@@ -10,6 +15,24 @@ export class Payment {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @OneToOne(() => Ticket, (ticket) => ticket.payment)
-  ticket!: Payment;
+  @Column( {
+    type: "enum",
+    enum: PaymentStatus
+  })
+  status!: PaymentStatus;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  expiry?: Date | null;
+
+  @Column({
+    nullable: true,
+  })
+  userId?: string;
+
+  @ManyToOne(() => User, (user) => user.payments)
+  @JoinColumn({ name: 'userId' })
+  user?: User;
+
+  @OneToMany(() => Ticket, (ticket) => ticket.payment, {cascade: true})
+  tickets!: Ticket[];
 }

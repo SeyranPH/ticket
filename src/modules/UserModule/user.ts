@@ -1,4 +1,5 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from "typeorm";
+import { Payment } from "../PaymentModule/payment";
 import { Ticket } from "../TicketModule/ticket";
 
 @Entity()
@@ -12,9 +13,12 @@ export class User {
   @Column()
   username!: string;
 
-  @Column()
+  @Column({select: false})
   password!: string;
 
-  @OneToMany(() => Ticket, (ticket) => ticket.event)
+  @OneToMany(() => Ticket, (ticket) => ticket.user, {cascade: true})
   tickets!: Ticket[];
+
+  @OneToMany(() => Payment, (payment) => payment.user, {cascade: true})
+  payments!: Payment[];
 }

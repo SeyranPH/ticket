@@ -2,38 +2,48 @@ import { Router, Request, Response, NextFunction } from "express";
 
 import { TicketService } from "./TicketService";
 
-const userRouter = Router();
-userRouter.post("/", makeReservation);
-userRouter.get("/event/:id", getEventAvailability);
-userRouter.get("/user/:id", getUserAvailability);
+const ticketRouter = Router();
+ticketRouter.post("/", makeReservation);
+ticketRouter.get("/event/:id", getEventAvailability);
+ticketRouter.get("/user/:id", getUserReservations);
 
 async function makeReservation(req: Request, res: Response, next: NextFunction) {
     try{
         const ticketService = new TicketService();
-        const { ticketPlaces, eventName, userId } = req.body;
-        await ticketService.makeReservation(ticketPlaces, eventName, userId);
-        return res.sendStatus(201);
+        const { ticketPlaces, eventId, userId } = req.body;
+        const paymentId = await ticketService.makeReservation(ticketPlaces, eventId, userId);
+        return res.status(201).send({paymentId});
     }
     catch(e){
-        console.error(e)
         next(e);
     }
 }
 
-async function getEventAvailability(req: Request, res: Response) {
-    const eventId = req.params.id;
-    const ticketService = new TicketService();
-    const unavailableTickets = await ticketService.getEventAvailability(eventId);
-    return res.status(200).send({unavailableTickets});
+async function getEventAvailability(req: Request, res: Response, next: NextFunction) {
+    try {
+        const eventId = req.params.id;
+        const ticketService = new TicketService();
+        const unavailableTickets = await ticketService.getEventAvailability(eventId);
+        return res.status(200).send({unavailableTickets});
+    }
+    catch(e){
+        next(e);
+    }
+
 }
 
-async function getUserAvailability(req: Request, res: Response) {
-    const userId = req.params.id;
-    const ticketService = new TicketService();
-    const unavailableTickets = await ticketService.getUserAvailability(userId);
-    return res.status(200).send({unavailableTickets});
+async function getUserReservations(req: Request, res: Response, next: NextFunction) {
+    try {
+        const userId = req.params.id;
+        const ticketService = new TicketService();
+        const reservedTickets = await ticketService.getUserReservations(userId);
+        return res.status(200).send({reservedTickets});
+    }
+    catch(e){
+        next(e);
+    }
 }
 
 
 
-export { userRouter };
+export { ticketRouter };
