@@ -15,10 +15,7 @@ export class User {
 
   @Column({select: false})
   password!: string;
-
-  @OneToMany(() => Ticket, (ticket) => ticket.user, {cascade: true})
-  tickets!: Ticket[];
-
+  
   @OneToMany(() => Payment, (payment) => payment.user, {cascade: true})
   payments!: Payment[];
 }

@@ -30,15 +30,6 @@ export class Ticket {
   @Column()
   column!: number;
 
-  @Column({
-    nullable: true,
-  })
-  userId?: string;
-
-  @ManyToOne(() => User, (user) => user.tickets)
-  @JoinColumn({ name: 'userId' })
-  user?: User;
-
   @ManyToOne(() => Event, (event) => event.tickets)
   event!: Event;
 

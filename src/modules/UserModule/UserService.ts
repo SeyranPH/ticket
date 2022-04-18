@@ -16,7 +16,7 @@ export class UserService {
     username: string;
     password: string;
   }): Promise<User> {
-    const user = new User({ username, password, tickets: [] });
+    const user = new User({ username, password });
     return await this.userRepository.save(user);
   }
 }

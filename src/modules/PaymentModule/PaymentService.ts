@@ -48,7 +48,7 @@ export class PaymentService {
 
     const payment = await this.paymentRepository.createQueryBuilder("payment")
       .leftJoinAndSelect("payment.tickets", "ticket")
-      .leftJoinAndSelect("ticket.user", "user")
+      .leftJoinAndSelect("payment.user", "user")
       .where("payment.id = :paymentId", { paymentId })
       .andWhere("user.id = :userId", { userId })
       .getOne();
@@ -67,15 +67,11 @@ export class PaymentService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      const result = await this.simulatePurchase();
-      payment.status = PaymentStatus.sold;
-      delete payment.expiry;
-      await this.paymentRepository.save(payment);
+      await this.simulatePurchase();
       await queryRunner.manager.update(Payment, payment.id, {
         status: PaymentStatus.sold,
         expiry: null
       });
-      
       await queryRunner.commitTransaction();
       return payment.tickets;
     } catch (error) {

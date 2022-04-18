@@ -1,0 +1,25 @@
+Requirements:
+
+- docker-compose version 1.29.2
+- Docker version 20.10.10
+(I have worked with these versions, other versions will probably work too)
+
+How to run:
+- Add .env file the same place .envsample file exists
+- Run docker-compose build
+- Run docker-compose up
+
+Description:
+I have added create APIs for user, city, hall and event without proper logic, for the sake of data creation simplicity.
+Ticket module has 3 APIs:
+- POST /ticket to make reservation
+- GET /ticket/event/:id to get information about event's availability 
+    I decided not to create tickets each time events are added. 
+    When somebody reserves/buys a ticket, data will be added/updated.
+    This API will send list of tickets which are not available (either sold or reservation is not expired), which is enough to deduce available tickets.
+- GET /user/:id to get information about user's reserved ticket
+    This API will send list of user's reserved tickets
+- POST /payment
+    This API will try to finish payment with mentioned ID.
+    As I didn't have third party payment APIs, I have added payment simulator, which randomly throws error.
+    This way we may check API behaviour if payment fails.

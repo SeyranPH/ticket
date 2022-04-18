@@ -24,6 +24,9 @@ async function getEventAvailability(req: Request, res: Response, next: NextFunct
         const eventId = req.params.id;
         const ticketService = new TicketService();
         const unavailableTickets = await ticketService.getEventAvailability(eventId);
+        if (unavailableTickets.length === 0) {
+            return res.status(200).send({availableTickets: "All tickets are available"});
+        }
         return res.status(200).send({unavailableTickets});
     }
     catch(e){
@@ -37,6 +40,7 @@ async function getUserReservations(req: Request, res: Response, next: NextFuncti
         const userId = req.params.id;
         const ticketService = new TicketService();
         const reservedTickets = await ticketService.getUserReservations(userId);
+
         return res.status(200).send({reservedTickets});
     }
     catch(e){

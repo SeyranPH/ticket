@@ -14,4 +14,5 @@ export const dbConfig = {
 
 export const config = {
   port: process.env.SERVER_PORT,
+  expireTimeInMinutes: 15
 }
