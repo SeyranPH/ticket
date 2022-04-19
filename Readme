@@ -10,7 +10,13 @@ How to run:
 - Run docker-compose up
 
 Description:
+
+The project uses Typescript, Express.js, PostgreSQL and Typeorm.
+
 I have added create APIs for user, city, hall and event without proper logic, for the sake of data creation simplicity.
+They do not have valid logic, but only simple APIs to add data to database.
+
+The core APIs are described below.
 Ticket module has 3 APIs:
 - POST /ticket to make reservation
 - GET /ticket/event/:id to get information about event's availability 
@@ -19,6 +25,8 @@ Ticket module has 3 APIs:
     This API will send list of tickets which are not available (either sold or reservation is not expired), which is enough to deduce available tickets.
 - GET /user/:id to get information about user's reserved ticket
     This API will send list of user's reserved tickets
+
+Payment module has 1 API
 - POST /payment
     This API will try to finish payment with mentioned ID.
     As I didn't have third party payment APIs, I have added payment simulator, which randomly throws error.

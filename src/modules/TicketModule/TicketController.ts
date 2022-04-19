@@ -1,11 +1,24 @@
 import { Router, Request, Response, NextFunction } from "express";
-
+import { body, param } from "express-validator";
 import { TicketService } from "./TicketService";
 
 const ticketRouter = Router();
-ticketRouter.post("/", makeReservation);
-ticketRouter.get("/event/:id", getEventAvailability);
-ticketRouter.get("/user/:id", getUserReservations);
+ticketRouter.post(
+    "/",
+    body("ticketPlaces").isArray(),
+    body('eventId').isString().isLength({min: 36, max: 36}).withMessage('eventId must be a string'), 
+    body('userId').isString().isLength({min: 36, max: 36}).withMessage('userId must be a string'),
+    makeReservation
+);
+ticketRouter.get(
+    "/event/:id", 
+    param('eventId').isString().isLength({min: 36, max: 36}).withMessage('eventId must be a string'), 
+    getEventAvailability
+);
+ticketRouter.get(
+    "/user/:id", 
+    param('userId').isString().isLength({min: 36, max: 36}).withMessage('userId must be a string'), 
+    getUserReservations);
 
 async function makeReservation(req: Request, res: Response, next: NextFunction) {
     try{
